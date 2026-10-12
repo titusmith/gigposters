@@ -60,6 +60,7 @@
   #stage.reflow .card { transition: opacity .3s ease, transform .45s cubic-bezier(.3,.7,.2,1); }
   #stage.dragging .card, #stage.open .card { cursor: inherit; }
   .card.selected { z-index: 10; box-shadow: var(--lift); }
+  .card.prev { z-index: 9; }
   .card.hires { z-index: 11; pointer-events: none; background: transparent; transition: opacity .35s ease; }
   .card.hires.show { opacity: 1; }
   #stage.dim .card.ready:not(.selected) { opacity: .75; }
@@ -394,7 +395,7 @@
         }
       }
     }
-    for (const [key, el] of pool) if (!seen.has(key)) { el.remove(); pool.delete(key); }
+    for (const [key, el] of pool) if (!seen.has(key)) { if (navLeaving) navLeaving.push(el); else el.remove(); pool.delete(key); }
   }
 
   // ---------- panning ----------
@@ -471,9 +472,22 @@
     }, 60);
   }, { passive: false });
 
-  // ---------- open / close ----------
+  // ---------- open / close / arrow keys ----------
+  // Every poster's spot on screen is a box: center x/y plus displayed width/height. An animation
+  // moves each poster from one box to another. The open poster (and the one handing over to it
+  // during an arrow move) is drawn at real size so it stays sharp; the rest are scaled.
   let snap = null, animRaf = 0, progress = 0;
   const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const canvasBox = el => ({ x: el._x + el._w / 2, y: el._y + el._h / 2, w: el._w, h: el._h });
+
+  function draw(el, b, sized) {
+    if (sized) {
+      el.style.width = b.w + "px"; el.style.height = b.h + "px";
+      el.style.transform = `translate3d(${b.x - b.w / 2}px,${b.y - b.h / 2}px,0)`;
+    } else {
+      el.style.transform = `translate3d(${b.x - el._w / 2}px,${b.y - el._h / 2}px,0) scale(${b.w / el._w})`;
+    }
+  }
 
   function handleClick(e) {
     if (mode === "open" || mode === "opening") return close();
@@ -482,17 +496,20 @@
     if (el) open(el);
   }
 
+  function heroBox(sel) {
+    const vw = innerWidth, vh = innerHeight, ratio = POSTERS[+sel.dataset.idx].ratio;
+    const maxW = vw * 0.88, maxH = vh * 0.84;
+    let w = maxW, h = w * ratio;
+    if (h > maxH) { h = maxH; w = h / ratio; }
+    return { x: vw / 2, y: vh / 2, w, h };
+  }
+
   // While a poster is open, the others scatter outward from it (close neighbors move the most),
   // then a separation pass nudges apart anything that would overlap, so every poster keeps
   // clear space around it and a wider margin around the open poster.
-  function open(sel) {
-    cancelAnimationFrame(glideRaf);
-    const vw = innerWidth, vh = innerHeight, s = OPEN_SCALE;
-    const ratio = POSTERS[+sel.dataset.idx].ratio;
-    const maxW = vw * 0.88, maxH = vh * 0.84;
-    let tw = maxW, th = tw * ratio;
-    if (th > maxH) { th = maxH; tw = th / ratio; }
-    const ctx = vw / 2, cty = vh / 2;
+  function scatterLayout(sel) {
+    const s = OPEN_SCALE, hb = heroBox(sel);
+    const tw = hb.w, th = hb.h, ctx = hb.x, cty = hb.y;
     const c0x = sel._x + sel._w / 2, c0y = sel._y + sel._h / 2;
     const P = gap;               // clear space between small posters
     const H = gap * 1.6;         // clear space around the open poster
@@ -509,7 +526,7 @@
       const b0 = edge(sel._w, sel._h), b1 = edge(tw, th);
       const D = (b1 - b0) + colW * 0.7 + gap * 2;
       const push = D * Math.exp(-Math.max(0, r - b0) / (D * 1.35));
-      nodes.push({ el, cx, cy, r: Math.max(0, r - b0),
+      nodes.push({ el, r: Math.max(0, r - b0),
                    x: ctx + ux * (r + push), y: cty + uy * (r + push),
                    hw: el._w * s / 2 + P / 2, hh: el._h * s / 2 + P / 2 });
     }
@@ -536,72 +553,137 @@
         for (let j = i + 1; j < nodes.length; j++) sep(nodes[i], nodes[j], false);
     }
 
-    const items = nodes.map(n => ({ el: n.el, sel: false, from: [n.cx, n.cy, 1], to: [n.x, n.y, s],
-                                    delay: Math.min(110, n.r * 0.12) }));
-    items.push({ el: sel, sel: true, from: [sel._x, sel._y, sel._w, sel._h], to: [ctx - tw / 2, cty - th / 2, tw, th], delay: 0 });
+    const out = new Map();
+    for (const n of nodes) out.set(n.el, { box: { x: n.x, y: n.y, w: n.el._w * s, h: n.el._h * s }, r: n.r });
+    out.set(sel, { box: hb, r: 0 });
+    return out;
+  }
+
+  // lay the full-size scan over the thumbnail and fade it in once it's fully decoded,
+  // so the poster never flashes blank while the sharper file takes over
+  function loadHires(sel) {
+    const full = sel.dataset.full;
+    if (!full) return;
+    const hi = new Image();
+    hi.className = "card hires";
+    hi.alt = "";
+    hi.draggable = false;
+    hi.src = full;
+    const mine = snap;
+    hi.decode().catch(() => {}).then(() => {
+      if (snap !== mine || mode === "closing" || !hi.naturalWidth) return;
+      snap.hires = hi;
+      syncHires(hi, sel);
+      stage.appendChild(hi);
+      requestAnimationFrame(() => requestAnimationFrame(() => hi.classList.add("show")));
+    });
+  }
+
+  // keep a full-size overlay exactly on top of its poster
+  function syncHires(h, el) {
+    const s = el.style;
+    h.style.width = s.width; h.style.height = s.height; h.style.transform = s.transform;
+  }
+
+  function open(sel) {
+    cancelAnimationFrame(glideRaf);
+    const items = [];
+    for (const [el, { box, r }] of scatterLayout(sel))
+      items.push({ el, from: canvasBox(el), to: box, sized: el === sel, delay: el === sel ? 0 : Math.min(110, r * 0.12) });
     snap = { items, sel };
     sel.classList.add("selected");
-    // lay the full-size scan over the thumbnail and fade it in once it's fully decoded,
-    // so the poster never flashes blank while the sharper file takes over
-    const full = sel.dataset.full;
-    if (full) {
-      const hi = new Image();
-      hi.className = "card hires";
-      hi.alt = "";
-      hi.draggable = false;
-      hi.src = full;
-      const mine = snap;
-      hi.decode().catch(() => {}).then(() => {
-        if (snap !== mine || mode === "closing" || !hi.naturalWidth) return;
-        snap.hires = hi;
-        syncHires();
-        stage.appendChild(hi);
-        requestAnimationFrame(() => requestAnimationFrame(() => hi.classList.add("show")));
-      });
-    }
+    loadHires(sel);
     stage.classList.add("open", "dim");
     progress = 0;
     animate(1);
   }
 
   function close() {
-    if (!snap) return;
+    if (!snap || snap.nav) return;     // let an arrow move finish first
     stage.classList.remove("dim");
     if (snap.hires) snap.hires.classList.remove("show");   // fade back to the thumbnail as it shrinks
     animate(0);
+  }
+
+  // Arrow keys: hop to the nearest scattered poster in that direction. The canvas glides so the
+  // new poster's spot is centered, it grows into the open position while the current one shrinks
+  // into the new scatter, all in one move.
+  let navLeaving = null;
+  function navigate(dx, dy) {
+    if (mode !== "open" || !snap) return;
+    const vw = innerWidth, vh = innerHeight, cx0 = vw / 2, cy0 = vh / 2;
+    let best = null, bestScore = Infinity;
+    for (const it of snap.items) {
+      if (it.el === snap.sel || it.el.classList.contains("leaving")) continue;
+      const ox = it.to.x - cx0, oy = it.to.y - cy0;
+      const along = ox * dx + oy * dy, perp = Math.abs(ox * dy - oy * dx);
+      if (along <= 0) continue;
+      const score = along + perp * 1.5;
+      if (score < bestScore) { bestScore = score; best = it.el; }
+    }
+    if (!best) return;
+
+    const now = new Map(snap.items.map(it => [it.el, it.to]));   // where everything sits right now
+    const prev = snap.sel, oldHires = snap.hires;
+    panX += cx0 - (best._x + best._w / 2);
+    panY += cy0 - (best._y + best._h / 2);
+    const leaving = [];
+    mode = "idle"; navLeaving = leaving; render(); navLeaving = null;
+
+    const items = [];
+    for (const [el, { box, r }] of scatterLayout(best)) {
+      const from = now.get(el);
+      if (!from) {   // posters that weren't on screen fade in at their new spot
+        el.classList.remove("ready");
+        requestAnimationFrame(() => requestAnimationFrame(() => { if (el.complete) el.classList.add("ready"); }));
+      }
+      items.push({ el, from: from || box, to: box, sized: el === best || el === prev, delay: from && el !== best && el !== prev ? Math.min(90, r * 0.08) : 0 });
+    }
+    for (const el of leaving) { el.classList.add("leaving"); setTimeout(() => el.remove(), 400); }
+
+    prev.classList.remove("selected"); prev.classList.add("prev");
+    best.classList.add("selected");
+    if (oldHires) oldHires.classList.remove("show");
+    snap = { items, sel: best, prev, oldHires, nav: true };
+    loadHires(best);
+    progress = 0;
+    animate(1);
+  }
+
+  // after an arrow move, make this layout the one that closing returns from
+  function settle() {
+    if (snap.oldHires) snap.oldHires.remove();
+    if (snap.prev) snap.prev.classList.remove("prev");
+    for (const it of snap.items) {
+      if (it.sized && it.el !== snap.sel) {
+        it.el.style.width = it.el._w + "px"; it.el.style.height = it.el._h + "px";
+        it.sized = false;
+        draw(it.el, it.to, false);
+      }
+      it.from = canvasBox(it.el);
+    }
+    snap.nav = false; snap.prev = null; snap.oldHires = null;
   }
 
   function apply(p) {
     for (const it of snap.items) {
       // nearer posters start first; farther ones follow a beat later (a small ripple)
       const df = it.delay / 700;
-      const tt = it.sel ? ease(p) : ease(Math.min(1, Math.max(0, (p - df) / (1 - df))));
-      if (it.sel) {
-        const [x0, y0, w0, h0] = it.from, [x1, y1, w1, h1] = it.to;
-        it.el.style.width = (w0 + (w1 - w0) * tt) + "px";
-        it.el.style.height = (h0 + (h1 - h0) * tt) + "px";
-        it.el.style.transform = `translate3d(${x0 + (x1 - x0) * tt}px,${y0 + (y1 - y0) * tt}px,0)`;
-        if (snap.hires) syncHires();
-      } else {
-        const [x0, y0] = it.from, [x1, y1, s1] = it.to;
-        const cx = x0 + (x1 - x0) * tt, cy = y0 + (y1 - y0) * tt, sc = 1 + (s1 - 1) * tt;
-        it.el.style.transform = `translate3d(${cx - it.el._w / 2}px,${cy - it.el._h / 2}px,0) scale(${sc})`;
-      }
+      const t = ease(Math.min(1, Math.max(0, (p - df) / (1 - df))));
+      const a = it.from, b = it.to;
+      draw(it.el, { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, w: a.w + (b.w - a.w) * t, h: a.h + (b.h - a.h) * t }, it.sized);
     }
-  }
-
-  // keep the full-size overlay exactly on top of the open poster
-  function syncHires() {
-    const h = snap.hires, s = snap.sel.style;
-    h.style.width = s.width; h.style.height = s.height; h.style.transform = s.transform;
+    if (snap.hires) syncHires(snap.hires, snap.sel);
+    if (snap.oldHires && snap.prev) syncHires(snap.oldHires, snap.prev);
   }
 
   function finishClose() {
     if (snap.hires) snap.hires.remove();
+    if (snap.oldHires) snap.oldHires.remove();
     const sel = snap.sel;
     sel.classList.remove("selected");
-    sel.style.width = sel._w + "px"; sel.style.height = sel._h + "px";
-    for (const el of pool.values()) el.classList.remove("away");
+    if (snap.prev) snap.prev.classList.remove("prev");
+    for (const el of pool.values()) { el.style.width = el._w + "px"; el.style.height = el._h + "px"; }
     snap = null; mode = "idle"; progress = 0;
     stage.classList.remove("open", "dim");
     render();
@@ -616,19 +698,24 @@
   function animate(target) {
     cancelAnimationFrame(animRaf);
     mode = target ? "opening" : "closing";
-    const dur = reduceMotion ? 1 : (target ? 720 : 620);
+    const dur = reduceMotion ? 1 : (snap.nav ? 680 : target ? 720 : 620);
     const start = progress, t0 = performance.now();
     const step = now => {
       const k = Math.min(1, (now - t0) / dur);
       progress = start + (target - start) * k;
       apply(progress);
       if (k < 1) { animRaf = requestAnimationFrame(step); return; }
-      if (target) mode = "open"; else finishClose();
+      if (target) { mode = "open"; if (snap.nav) settle(); }
+      else finishClose();
     };
     animRaf = requestAnimationFrame(step);
   }
 
-  addEventListener("keydown", e => { if (e.key === "Escape" && snap) close(); });
+  const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  addEventListener("keydown", e => {
+    if (e.key === "Escape" && snap) return close();
+    if (snap && ARROWS[e.key] && e.target !== input) { e.preventDefault(); navigate(...ARROWS[e.key]); }
+  });
 
   addEventListener("resize", () => {
     closeNow();
