@@ -149,26 +149,35 @@
 </div>
 
 <script>
-(() => {
+(async () => {
   // ---------- data ----------
-  // [file, width, height, original name, tags]
-  const POSTERS = [
-    ["p01.png",1080,1375,"2024-04-15-oo.png",["turnpile"]],
-    ["p02.png",1080,1375,"2024-07-09-f.png",[]],
-    ["p03.png",1080,1375,"2024-11-1-tmp.png",[]],
-    ["p04.png",1375,1080,"2024-3-11-bbc.png",[]],
-    ["p05.png",1375,1080,"2025-10-29-mg.png",[]],
-    ["p06.png",1080,1374,"2025-6-24-oa.png",[]],
-    ["p07.png",1080,1375,"2026-06-20-sh.png",[]],
-    ["p08.png",1375,1080,"2026-07-30-tf.png",[]],
-    ["p09.png",1080,1375,"2026-10-6-ts.png",["turnstile"]],
-    ["p10.png",1080,1375,"2026-8-4-boh.png",[]],
-    ["p11.png",1080,1375,"2026-9-11-mtb.png",[]],
-    ["p12.png",1080,1375,"2026-9-2-ytg.png",[]],
-    ["p13.png",1080,1375,"2026-9-23-mm.png",[]],
-    ["p14.png",1080,1375,"2026-9-25-al.png",[]],
-    ["p15.png",1375,1080,"2026-9-29-tmbg.png",[]]
-  ].map(([f, w, h, name, tags]) => ({ src: "posters/" + name, ratio: h / w, name, tags }));
+  // posters.csv lists every poster, one per line:  file, shape, tags
+  //   shape: portrait or landscape (blank means portrait); every poster prints at 11x14
+  //   tags:  separated by semicolons, e.g.  turnstile; slayyyter; die spitz
+  // Lines starting with # are notes and are skipped.
+  async function loadPosters() {
+    const res = await fetch("posters.csv", { cache: "no-cache" });
+    if (!res.ok) throw new Error("posters.csv could not be loaded (" + res.status + ")");
+    const out = [];
+    for (const raw of (await res.text()).split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line || line.startsWith("#") || /^file\s*,/i.test(line)) continue;
+      const [file, shape = "", ...rest] = line.split(",").map(s => s.trim());
+      if (!file) continue;
+      const landscape = /^l/i.test(shape);
+      const tags = rest.join(",").split(";").map(t => t.trim().toLowerCase()).filter(Boolean);
+      out.push({ src: "posters/" + file, ratio: landscape ? 11 / 14 : 14 / 11, name: file, tags });
+    }
+    return out;
+  }
+  let POSTERS;
+  try { POSTERS = await loadPosters(); }
+  catch (err) {
+    const msg = document.getElementById("empty");
+    msg.textContent = "Couldn’t load the poster list. " + err.message;
+    msg.hidden = false;
+    return;
+  }
   const N = POSTERS.length;
   const OPEN_SCALE = 0.8;      // size of the background posters while one is open
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;

@@ -4,6 +4,7 @@ An archive of gig posters on an endless, draggable canvas.
 
 - `index.html`: the whole site (layout, interaction, search, light/dark switch) in one file.
 - `posters/`: web-sized poster images, named `YYYY-M-D-code.png`.
+- `posters.csv`: the poster list. One line per poster: `file, shape, tags`. Shape is `portrait` or `landscape` (blank means portrait); separate tags with semicolons. Edit it right on GitHub when you upload new posters.
 
 To run it locally, open `index.html` from a local web server (for example `python3 -m http.server`) so the images load.
 

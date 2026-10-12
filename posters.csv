@@ -1,0 +1,22 @@
+# Gig poster list: one poster per line.
+# file, shape, tags
+#   file:  the image name in the posters folder
+#   shape: portrait or landscape (leave blank for portrait)
+#   tags:  separate tags with semicolons, e.g.  turnstile; slayyyter; die spitz
+# Lines starting with # are notes and are ignored.
+file, shape, tags
+2024-04-15-oo.png, portrait, turnpile
+2024-07-09-f.png, portrait,
+2024-11-1-tmp.png, portrait,
+2024-3-11-bbc.png, landscape,
+2025-10-29-mg.png, landscape,
+2025-6-24-oa.png, portrait,
+2026-06-20-sh.png, portrait,
+2026-07-30-tf.png, landscape,
+2026-10-6-ts.png, portrait, turnstile
+2026-8-4-boh.png, portrait,
+2026-9-11-mtb.png, portrait,
+2026-9-2-ytg.png, portrait,
+2026-9-23-mm.png, portrait,
+2026-9-25-al.png, portrait,
+2026-9-29-tmbg.png, landscape,
