@@ -60,6 +60,8 @@
   #stage.reflow .card { transition: opacity .3s ease, transform .45s cubic-bezier(.3,.7,.2,1); }
   #stage.dragging .card, #stage.open .card { cursor: inherit; }
   .card.selected { z-index: 10; box-shadow: var(--lift); }
+  .card.hires { z-index: 11; pointer-events: none; background: transparent; transition: opacity .35s ease; }
+  .card.hires.show { opacity: 1; }
   #stage.dim .card.ready:not(.selected) { opacity: .75; }
   @media (hover: hover) {
     #stage:not(.dragging):not(.open) .card.ready:hover { z-index: 5; box-shadow: var(--lift); }
@@ -539,19 +541,35 @@
     items.push({ el: sel, sel: true, from: [sel._x, sel._y, sel._w, sel._h], to: [ctx - tw / 2, cty - th / 2, tw, th], delay: 0 });
     snap = { items, sel };
     sel.classList.add("selected");
-    // swap the thumbnail for the full-size scan once it has loaded
+    // lay the full-size scan over the thumbnail and fade it in once it's fully decoded,
+    // so the poster never flashes blank while the sharper file takes over
     const full = sel.dataset.full;
-    if (full && !sel.src.endsWith(full)) {
+    if (full) {
       const hi = new Image();
-      hi.onload = () => { sel.src = full; };
+      hi.className = "card hires";
+      hi.alt = "";
+      hi.draggable = false;
       hi.src = full;
+      const mine = snap;
+      hi.decode().catch(() => {}).then(() => {
+        if (snap !== mine || mode === "closing" || !hi.naturalWidth) return;
+        snap.hires = hi;
+        syncHires();
+        stage.appendChild(hi);
+        requestAnimationFrame(() => requestAnimationFrame(() => hi.classList.add("show")));
+      });
     }
     stage.classList.add("open", "dim");
     progress = 0;
     animate(1);
   }
 
-  function close() { if (snap) { stage.classList.remove("dim"); animate(0); } }
+  function close() {
+    if (!snap) return;
+    stage.classList.remove("dim");
+    if (snap.hires) snap.hires.classList.remove("show");   // fade back to the thumbnail as it shrinks
+    animate(0);
+  }
 
   function apply(p) {
     for (const it of snap.items) {
@@ -563,6 +581,7 @@
         it.el.style.width = (w0 + (w1 - w0) * tt) + "px";
         it.el.style.height = (h0 + (h1 - h0) * tt) + "px";
         it.el.style.transform = `translate3d(${x0 + (x1 - x0) * tt}px,${y0 + (y1 - y0) * tt}px,0)`;
+        if (snap.hires) syncHires();
       } else {
         const [x0, y0] = it.from, [x1, y1, s1] = it.to;
         const cx = x0 + (x1 - x0) * tt, cy = y0 + (y1 - y0) * tt, sc = 1 + (s1 - 1) * tt;
@@ -571,7 +590,14 @@
     }
   }
 
+  // keep the full-size overlay exactly on top of the open poster
+  function syncHires() {
+    const h = snap.hires, s = snap.sel.style;
+    h.style.width = s.width; h.style.height = s.height; h.style.transform = s.transform;
+  }
+
   function finishClose() {
+    if (snap.hires) snap.hires.remove();
     const sel = snap.sel;
     sel.classList.remove("selected");
     sel.style.width = sel._w + "px"; sel.style.height = sel._h + "px";
