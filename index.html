@@ -151,9 +151,13 @@
 <script>
 (async () => {
   // ---------- data ----------
-  // posters.csv lists every poster, one per line:  file, shape, tags
-  //   shape: portrait or landscape (blank means portrait); every poster prints at 11x14
-  //   tags:  separated by semicolons, e.g.  turnstile; slayyyter; die spitz
+  // posters.csv lists every design once:  poster, shape, colors, tags
+  //   poster: the design name, e.g. 2026-9-25-al (no color, no extension)
+  //   shape:  portrait or landscape (blank means portrait); every poster prints at 11x14
+  //   colors: printed versions separated by slashes, e.g. pink/cream (blank if only one)
+  //   tags:   everything after that, separated by commas
+  // Images live in posters/ as  <poster>-<color>.webp  and  <poster>-<color>-thumb.webp
+  // (or <poster>.webp and <poster>-thumb.webp when there are no colors).
   // Lines starting with # are notes and are skipped.
   async function loadPosters() {
     const res = await fetch("posters.csv", { cache: "no-cache" });
@@ -161,12 +165,15 @@
     const out = [];
     for (const raw of (await res.text()).split(/\r?\n/)) {
       const line = raw.trim();
-      if (!line || line.startsWith("#") || /^file\s*,/i.test(line)) continue;
-      const [file, shape = "", ...rest] = line.split(",").map(s => s.trim());
-      if (!file) continue;
+      if (!line || line.startsWith("#") || /^poster\s*,/i.test(line)) continue;
+      const [name, shape = "", colorCell = "", ...rest] = line.split(",").map(s => s.trim());
+      if (!name) continue;
       const landscape = /^l/i.test(shape);
-      const tags = rest.join(",").split(";").map(t => t.trim().toLowerCase()).filter(Boolean);
-      out.push({ src: "posters/" + file, ratio: landscape ? 11 / 14 : 14 / 11, name: file, tags });
+      const colors = colorCell.split("/").map(c => c.trim().toLowerCase()).filter(Boolean);
+      const tags = rest.flatMap(t => t.split(";")).map(t => t.trim().toLowerCase()).filter(Boolean);
+      const files = colors.length ? colors.map(c => name + "-" + c) : [name];
+      const variants = files.map((f, i) => ({ color: colors[i] || "", thumb: "posters/" + f + "-thumb.webp", full: "posters/" + f + ".webp" }));
+      out.push({ name, ratio: landscape ? 11 / 14 : 14 / 11, colors, tags, variants });
     }
     return out;
   }
@@ -320,15 +327,22 @@
     return out;
   }
 
-  function makeCard(idx) {
+  // Each spot on the canvas shows one color version of its design, picked from the spot's
+  // position, so the layout rules (no repeats side by side or stacked) apply to the design
+  // and a design with many colors doesn't show up more often than one with a single version.
+  function makeCard(idx, key) {
+    const vs = POSTERS[idx].variants;
+    const [a, b] = String(key).split(":").map(Number);
+    const v = vs[hash(a * 31 + 17, b) % vs.length];
     const img = new Image();
     img.className = "card";
     img.draggable = false;
-    img.alt = POSTERS[idx].name;
+    img.alt = POSTERS[idx].name + (v.color ? " (" + v.color + ")" : "");
     img.decoding = "async";
     img.dataset.idx = idx;
+    img.dataset.full = v.full;
     img.onload = () => img.classList.add("ready");
-    img.src = POSTERS[idx].src;
+    img.src = v.thumb;
     if (img.complete) {
       if (stage.classList.contains("reflow")) requestAnimationFrame(() => requestAnimationFrame(() => img.classList.add("ready")));
       else img.classList.add("ready");
@@ -353,7 +367,7 @@
   function ensure(card) {
     let el = pool.get(card.key);
     if (!el) {
-      el = claim(card.idx, card.x, card.y) || makeCard(card.idx);
+      el = claim(card.idx, card.x, card.y) || makeCard(card.idx, card.key);
       el.style.width = card.w + "px"; el.style.height = card.h + "px";
       el.dataset.key = card.key;
       pool.set(card.key, el);
@@ -525,6 +539,13 @@
     items.push({ el: sel, sel: true, from: [sel._x, sel._y, sel._w, sel._h], to: [ctx - tw / 2, cty - th / 2, tw, th], delay: 0 });
     snap = { items, sel };
     sel.classList.add("selected");
+    // swap the thumbnail for the full-size scan once it has loaded
+    const full = sel.dataset.full;
+    if (full && !sel.src.endsWith(full)) {
+      const hi = new Image();
+      hi.onload = () => { sel.src = full; };
+      hi.src = full;
+    }
     stage.classList.add("open", "dim");
     progress = 0;
     animate(1);
