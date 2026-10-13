@@ -148,10 +148,9 @@
   .info-backdrop { position: fixed; inset: 0; z-index: 30; }
   .info {
     position: fixed; z-index: 31; left: 50%; top: 50%;
-    width: min(600px, calc(100% - 32px)); height: min(450px, calc(100% - 32px));
+    width: min(600px, calc(100% - 32px)); max-height: calc(100% - 32px);
     overflow: auto; box-sizing: border-box;
-    padding: 56px 48px 48px;
-    display: flex; flex-direction: column; justify-content: center;
+    padding: 28px 48px;   /* height hugs the paragraph */
     border-radius: 18px; border: 1px solid var(--chip-line);
     background: var(--panel); color: var(--fg); box-shadow: var(--lift);
     -webkit-backdrop-filter: blur(22px) saturate(1.3); backdrop-filter: blur(22px) saturate(1.3);
@@ -164,7 +163,7 @@
   .info a:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; border-radius: 2px; }
   .info .clear { position: absolute; top: 12px; right: 12px; }
   @media (max-width: 600px) {
-    .info { height: auto; max-height: calc(100% - 32px); padding: 52px 24px 28px; }
+    .info { padding: 28px 48px 28px 24px; }   /* right side clears the close button */
     .info p { font-size: 18px; }
   }
 
