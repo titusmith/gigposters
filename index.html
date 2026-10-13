@@ -135,24 +135,21 @@
   /* ---- paper color swatches ---- */
   .swatches {
     position: fixed; z-index: 20; left: 50%;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
-    display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 6px;
-    max-width: calc(100% - 32px); box-sizing: border-box;
-    border-radius: 999px; border: 1px solid var(--chip-line);
-    background: var(--chip); box-shadow: var(--shadow);
-    -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+    max-width: calc(100% - 32px);
     transform: translate(-50%, 10px); opacity: 0; pointer-events: none;
     transition: opacity .28s ease, transform .28s cubic-bezier(.3,.7,.2,1);
   }
   .swatches.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
   .swatches.dim  { opacity: .55; transform: translate(-50%, 0); pointer-events: auto; }
   .swatch {
-    width: 26px; height: 26px; padding: 0; border-radius: 50%; cursor: pointer;
-    background: var(--sw); border: 1px solid rgba(0, 0, 0, 0.18);
+    width: 22px; height: 22px; padding: 0; border-radius: 50%; cursor: pointer;
+    background: var(--sw); border: 1px solid rgba(0, 0, 0, 0.18); box-shadow: var(--shadow);
     transition: transform .15s ease, opacity .2s ease, box-shadow .15s ease;
   }
   .swatch:hover:not(:disabled) { transform: scale(1.12); }
-  .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--chip), 0 0 0 4px var(--fg); }
+  .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg), var(--shadow); }
   .swatch:disabled { opacity: .22; cursor: default; }
   .swatch:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
 
