@@ -4,7 +4,7 @@
 #   shape:  portrait or landscape (leave blank for portrait)
 #   colors: the paper color of each version (or the ink wash that makes the paper read as that color),
 #           separated by slashes (e.g. pink/cream). Each color gets a filter circle above the search bar.
-#           Use: green, blue, red, orange, yellow, pink, purple, cream, white, grey
+#           Use: green, blue, red, orange, yellow, pink, purple, cream, white, grey, black
 #           Leave blank only if unknown, but keep the comma: 2024-07-09-f, portrait, , fiddlehead
 #   tags:   everything after that, separated by commas
 # Images go in the posters folder, named:
@@ -12,18 +12,19 @@
 #   without:       2024-07-09-f.webp        and   2024-07-09-f-thumb.webp
 # Lines starting with # are notes and are ignored.
 poster, shape, colors, tags
-2024-04-15-oo, portrait, , oso oso, spanish love songs, bottleneck, lawrence
-2024-07-09-f, portrait, , fiddlehead, bottleneck, lawrence
-2024-11-1-tmp, portrait, , tiny moving parts, granada, lawrence
-2024-3-11-bbc, landscape, , bombay bicycle club, liberty hall, lawrence
-2025-10-29-mg, landscape, , militarie gun, liquid mike, public opinion, bottleneck, lawrence
-2025-6-24-oa, portrait, , origami angel, sundays at your place, granada, lawrence
-2026-06-20-sh, portrait, , belmont, major league, spite house, all in your head, recordbar, kansas city
-2026-07-30-tf, landscape, , the format, limbeck, bottleneck, lawrence
+2024-04-15-oo, portrait, pink/yellow, oso oso, spanish love songs, bottleneck, lawrence
+2024-07-09-f, portrait, green, fiddlehead, bottleneck, lawrence
+2024-11-1-tmp, portrait, yellow, tiny moving parts, granada, lawrence
+2024-3-11-bbc, landscape, blue/cream, bombay bicycle club, liberty hall, lawrence
+2025-10-29-mg, landscape, orange, militarie gun, liquid mike, public opinion, bottleneck, lawrence
+2025-6-24-oa, portrait, pink/yellow, origami angel, sundays at your place, granada, lawrence
+2026-06-20-sh, portrait, blue/cream, belmont, major league, spite house, all in your head, recordbar, kansas city
+2026-07-30-tf, landscape, pink/yellow, the format, limbeck, bottleneck, lawrence
 2026-10-6-ts, portrait, , turnstile, die spitz, slayyyter, ku, day on the hill, lawrence
-2026-8-4-boh, portrait, , band of horses, cotillion, wichita
-2026-9-11-mtb, portrait, , minus the bear, keep, granada, lawrence
-2026-9-2-ytg, portrait, , young the giant, cold war kids, starlight, kansas city
-2026-9-23-mm, portrait, , modest mouse, grinders, kansas city
-2026-9-25-al, portrait, pink/cream, holding absence, arms length, granada, lawrence
-2026-9-29-tmbg, landscape, , they might be giants, truman, kansas city
+2026-8-4-boh, portrait, black/blue, band of horses, cotillion, wichita
+2026-9-11-mtb, portrait, grey, minus the bear, keep, granada, lawrence
+2026-9-2-ytg, portrait, grey, young the giant, cold war kids, starlight, kansas city
+2026-9-23-mm, portrait, purple, modest mouse, grinders, kansas city
+2026-9-25-al, portrait, cream/pink, holding absence, arms length, granada, lawrence
+2026-9-29-tmbg, landscape, yellow, they might be giants, truman, kansas city
+2026-10-9-h, landscape, green, hovvdy, emma ogier, bottleneck, lawrence
