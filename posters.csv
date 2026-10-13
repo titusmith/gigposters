@@ -2,8 +2,10 @@
 # poster, shape, colors, tags
 #   poster: the design name, no color and no extension (e.g. 2026-9-25-al)
 #   shape:  portrait or landscape (leave blank for portrait)
-#   colors: the printed colors, separated by slashes (e.g. pink/cream). Leave blank if there's only one,
-#           but keep the comma so the tags stay in their column: 2024-07-09-f, portrait, , fiddlehead
+#   colors: the paper color of each version (or the ink wash that makes the paper read as that color),
+#           separated by slashes (e.g. pink/cream). Each color gets a filter circle above the search bar.
+#           Use: green, blue, red, orange, yellow, pink, purple, cream, white, grey
+#           Leave blank only if unknown, but keep the comma: 2024-07-09-f, portrait, , fiddlehead
 #   tags:   everything after that, separated by commas
 # Images go in the posters folder, named:
 #   with colors:   2026-9-25-al-pink.webp   and   2026-9-25-al-pink-thumb.webp

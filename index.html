@@ -132,6 +132,30 @@
   .clear:focus-visible { outline: 2px solid var(--fg); outline-offset: 1px; }
   .clear svg { width: 14px; height: 14px; }
 
+  /* ---- paper color swatches ---- */
+  .swatches {
+    position: fixed; z-index: 20; left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 6px;
+    max-width: calc(100% - 32px); box-sizing: border-box;
+    border-radius: 999px; border: 1px solid var(--chip-line);
+    background: var(--chip); box-shadow: var(--shadow);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
+    transform: translate(-50%, 10px); opacity: 0; pointer-events: none;
+    transition: opacity .28s ease, transform .28s cubic-bezier(.3,.7,.2,1);
+  }
+  .swatches.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .swatches.dim  { opacity: .55; transform: translate(-50%, 0); pointer-events: auto; }
+  .swatch {
+    width: 26px; height: 26px; padding: 0; border-radius: 50%; cursor: pointer;
+    background: var(--sw); border: 1px solid rgba(0, 0, 0, 0.18);
+    transition: transform .15s ease, opacity .2s ease, box-shadow .15s ease;
+  }
+  .swatch:hover:not(:disabled) { transform: scale(1.12); }
+  .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--chip), 0 0 0 4px var(--fg); }
+  .swatch:disabled { opacity: .22; cursor: default; }
+  .swatch:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+
   /* ---- info ---- */
   .info-btn {
     position: fixed; z-index: 20;
@@ -194,6 +218,8 @@
     <svg class="icon-moon" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></svg>
   </span>
 </button>
+
+<div class="swatches" id="swatches" role="group" aria-label="Filter by paper color" hidden></div>
 
 <div class="search" id="search">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -385,10 +411,14 @@
   // Each spot on the canvas shows one color version of its design, picked from the spot's
   // position, so the layout rules (no repeats side by side or stacked) apply to the design
   // and a design with many colors doesn't show up more often than one with a single version.
-  function makeCard(idx, key) {
-    const vs = POSTERS[idx].variants;
+  function variantFor(idx, key) {
+    let vs = POSTERS[idx].variants;
+    if (selColor) { const only = vs.filter(v => v.color === selColor); if (only.length) vs = only; }
     const [a, b] = String(key).split(":").map(Number);
-    const v = vs[hash(a * 31 + 17, b) % vs.length];
+    return vs[hash(a * 31 + 17, b) % vs.length];
+  }
+  function makeCard(idx, key) {
+    const v = variantFor(idx, key);
     const img = new Image();
     img.className = "card";
     img.draggable = false;
@@ -396,6 +426,7 @@
     img.decoding = "async";
     img.dataset.idx = idx;
     img.dataset.full = v.full;
+    img.dataset.color = v.color;
     img.onload = () => img.classList.add("ready");
     img.src = v.thumb;
     if (img.complete) {
@@ -407,11 +438,12 @@
   }
 
   // reuse a card of the same poster that sat nearby before a re-filter, so it slides into place
-  function claim(idx, x, y) {
+  function claim(idx, x, y, key) {
     if (!claimable) return null;
+    const want = variantFor(idx, key).color;
     let best = null, bestKey = null, bd = 900;
     for (const [k, el] of claimable) {
-      if (+el.dataset.idx !== idx) continue;
+      if (+el.dataset.idx !== idx || el.dataset.color !== want) continue;
       const d = Math.hypot(el._x - x, el._y - y);
       if (d < bd) { bd = d; best = el; bestKey = k; }
     }
@@ -422,7 +454,7 @@
   function ensure(card) {
     let el = pool.get(card.key);
     if (!el) {
-      el = claim(card.idx, card.x, card.y) || makeCard(card.idx, card.key);
+      el = claim(card.idx, card.x, card.y, card.key) || makeCard(card.idx, card.key);
       el.style.width = card.w + "px"; el.style.height = card.h + "px";
       el.dataset.key = card.key;
       pool.set(card.key, el);
@@ -766,6 +798,7 @@
   const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
   addEventListener("keydown", e => {
     if (e.key === "Escape" && snap) return close();
+    if (e.key === "Escape" && (input.value || selColor)) return clearSearch();
     if (snap && ARROWS[e.key] && e.target !== input) { e.preventDefault(); navigate(...ARROWS[e.key]); }
   });
 
@@ -781,15 +814,48 @@
   const input = document.getElementById("q");
   const clearBtn = document.getElementById("clear");
   const emptyEl = document.getElementById("empty");
+  const swatchesEl = document.getElementById("swatches");
   const noHover = matchMedia("(hover: none)").matches;
   let near = false, reflowT = 0;
 
+  // Paper colors: the swatch shade for each color name used in posters.csv.
+  // A name that isn't listed here still works; it's drawn with the browser's color of that name.
+  const PAPER = { green: "#6cae6e", blue: "#4a74c9", red: "#d6453a", orange: "#ee8b3a", yellow: "#f3d64a",
+                  pink: "#f3a6c0", purple: "#9576cc", cream: "#f2ead5", white: "#ffffff", grey: "#a3a39f" };
+  let selColor = "";
+  const swatchBtns = new Map();
+  {
+    const order = Object.keys(PAPER), rank = c => (order.indexOf(c) + 1) || 99;
+    const all = [...new Set(POSTERS.flatMap(p => p.colors))].sort((a, b) => rank(a) - rank(b));
+    for (const c of all) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "swatch"; b.title = c;
+      b.style.setProperty("--sw", PAPER[c] || c);
+      b.setAttribute("aria-label", c + " paper");
+      b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", () => { selColor = selColor === c ? "" : c; refilter(); updateSearchUI(); });
+      swatchesEl.appendChild(b); swatchBtns.set(c, b);
+    }
+    swatchesEl.hidden = !all.length;
+  }
+
+  let lastKey = base.join() + "|";
   function refilter() {
-    const q = input.value.trim().toLowerCase();
-    const next = q ? base.filter(i => POSTERS[i].tags.some(t => t.includes(q))) : [...base];
+    const raw = input.value.trim(), q = raw.toLowerCase();
+    const tagMatch = q ? base.filter(i => POSTERS[i].tags.some(t => t.includes(q))) : [...base];
+    // colors none of the tag matches come in are greyed out (the selected one stays clickable to turn it off)
+    const avail = new Set(tagMatch.flatMap(i => POSTERS[i].colors));
+    for (const [c, b] of swatchBtns) {
+      b.disabled = !avail.has(c) && c !== selColor;
+      b.setAttribute("aria-pressed", String(c === selColor));
+    }
+    const next = selColor ? tagMatch.filter(i => POSTERS[i].colors.includes(selColor)) : tagMatch;
     emptyEl.hidden = next.length > 0;
-    emptyEl.textContent = next.length ? "" : `No posters tagged “${input.value.trim()}”`;
-    if (next.join() === active.join()) return;
+    emptyEl.textContent = next.length ? "" :
+      selColor ? (raw ? `No ${selColor} posters tagged “${raw}”` : `No ${selColor} posters`) : `No posters tagged “${raw}”`;
+    const key = next.join() + "|" + selColor;
+    if (key === lastKey) return;
+    lastKey = key;
     closeNow();
     cancelAnimationFrame(glideRaf);
     active = next;
@@ -803,18 +869,21 @@
   }
 
   function updateSearchUI() {
-    const focused = document.activeElement === input || searchEl.contains(document.activeElement);
-    const hasText = input.value.length > 0;
-    clearBtn.hidden = !hasText;
-    searchEl.classList.toggle("show", focused || near);
-    searchEl.classList.toggle("dim", !(focused || near) && (hasText || noHover));
+    const focused = searchEl.contains(document.activeElement) || swatchesEl.contains(document.activeElement);
+    const hasFilter = input.value.length > 0 || !!selColor;
+    clearBtn.hidden = !hasFilter;
+    for (const el of [searchEl, swatchesEl]) {
+      el.classList.toggle("show", focused || near);
+      el.classList.toggle("dim", !(focused || near) && (hasFilter || noHover));
+    }
   }
 
   addEventListener("mousemove", e => {
-    const r = searchEl.getBoundingClientRect();
-    const dx = Math.max(r.left - e.clientX, 0, e.clientX - r.right);
-    const dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom);
-    const n = Math.hypot(dx, dy) <= 20;
+    const dist = el => {
+      const r = el.getBoundingClientRect();
+      return Math.hypot(Math.max(r.left - e.clientX, 0, e.clientX - r.right), Math.max(r.top - e.clientY, 0, e.clientY - r.bottom));
+    };
+    const n = dist(searchEl) <= 20 || (!swatchesEl.hidden && dist(swatchesEl) <= 20);
     if (n !== near) { near = n; releaseIfIdle(); updateSearchUI(); }
   });
   document.documentElement.addEventListener("mouseleave", () => { near = false; releaseIfIdle(); updateSearchUI(); });
@@ -822,6 +891,7 @@
   // an empty bar with the cursor away from it lets go of focus, so it can fade out
   function releaseIfIdle() {
     if (!near && !input.value && document.activeElement === input) input.blur();
+    if (!near && swatchesEl.contains(document.activeElement)) document.activeElement.blur();
   }
   input.addEventListener("input", () => { refilter(); releaseIfIdle(); updateSearchUI(); });
 
@@ -838,10 +908,11 @@
   });
   input.addEventListener("focus", updateSearchUI);
   input.addEventListener("blur", () => setTimeout(updateSearchUI, 0));
-  const clearSearch = () => { input.value = ""; refilter(); input.focus(); releaseIfIdle(); updateSearchUI(); };
+  const clearSearch = () => { input.value = ""; selColor = ""; refilter(); input.focus(); releaseIfIdle(); updateSearchUI(); };
   clearBtn.addEventListener("click", clearSearch);
+  swatchesEl.addEventListener("focusout", () => setTimeout(updateSearchUI, 0));
   input.addEventListener("keydown", e => {
-    if (e.key === "Escape" && input.value) { e.preventDefault(); e.stopPropagation(); clearSearch(); }
+    if (e.key === "Escape" && (input.value || selColor)) { e.preventDefault(); e.stopPropagation(); clearSearch(); }
   });
 
   // ---------- theme switch ----------
