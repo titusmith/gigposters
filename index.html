@@ -852,13 +852,14 @@
   function refilter() {
     const raw = input.value.trim(), q = raw.toLowerCase();
     const tagMatch = q ? base.filter(i => POSTERS[i].tags.some(t => t.includes(q))) : [...base];
-    // colors none of the tag matches come in are greyed out (the selected one stays clickable to turn it off)
+    // only colors the tag matches come in are shown (the selected one stays so it can be turned off)
     const avail = new Set(tagMatch.flatMap(i => POSTERS[i].colors));
     for (const [c, b] of swatchBtns) {
-      b.disabled = !avail.has(c) && c !== selColor;
+      b.hidden = !avail.has(c) && c !== selColor;
       b.setAttribute("aria-pressed", String(c === selColor));
       b.title = c === selColor ? "Clear " + c : c;
     }
+    swatchesEl.hidden = ![...swatchBtns.values()].some(b => !b.hidden);
     const next = selColor ? tagMatch.filter(i => POSTERS[i].colors.includes(selColor)) : tagMatch;
     emptyEl.hidden = next.length > 0;
     emptyEl.textContent = next.length ? "" :
