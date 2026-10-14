@@ -859,7 +859,8 @@
       b.setAttribute("aria-pressed", String(c === selColor));
       b.title = c === selColor ? "Clear " + c : c;
     }
-    swatchesEl.hidden = ![...swatchBtns.values()].some(b => !b.hidden);
+    // nothing to choose between when the results come in one color (a selected color stays so it can be cleared)
+    swatchesEl.hidden = !selColor && [...avail].filter(c => swatchBtns.has(c)).length < 2;
     const next = selColor ? tagMatch.filter(i => POSTERS[i].colors.includes(selColor)) : tagMatch;
     emptyEl.hidden = next.length > 0;
     emptyEl.textContent = next.length ? "" :
