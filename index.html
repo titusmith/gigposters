@@ -153,6 +153,16 @@
   .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg), var(--shadow); }
   .swatch:disabled { opacity: .22; cursor: default; }
   .swatch:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+  .swatch { position: relative; }
+  .sw-x {
+    position: absolute; top: -6px; right: -6px; width: 13px; height: 13px;
+    display: grid; place-items: center; border-radius: 50%;
+    background: var(--fg); color: var(--bg); box-shadow: 0 0 0 1.5px var(--bg);
+    opacity: 0; transform: scale(.6); pointer-events: none;
+    transition: opacity .15s ease, transform .15s ease;
+  }
+  .sw-x svg { width: 8px; height: 8px; }
+  .swatch[aria-pressed="true"] .sw-x { opacity: 1; transform: scale(1); }
 
   /* ---- info ---- */
   .info-btn {
@@ -831,6 +841,7 @@
       b.style.setProperty("--sw", PAPER[c] || c);
       b.setAttribute("aria-label", c + " paper");
       b.setAttribute("aria-pressed", "false");
+      b.innerHTML = '<span class="sw-x" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg></span>';
       b.addEventListener("click", () => { selColor = selColor === c ? "" : c; refilter(); updateSearchUI(); });
       swatchesEl.appendChild(b); swatchBtns.set(c, b);
     }
@@ -846,6 +857,7 @@
     for (const [c, b] of swatchBtns) {
       b.disabled = !avail.has(c) && c !== selColor;
       b.setAttribute("aria-pressed", String(c === selColor));
+      b.title = c === selColor ? "Clear " + c : c;
     }
     const next = selColor ? tagMatch.filter(i => POSTERS[i].colors.includes(selColor)) : tagMatch;
     emptyEl.hidden = next.length > 0;
