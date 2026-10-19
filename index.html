@@ -207,6 +207,9 @@
   .info a { color: var(--link); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; overflow-wrap: anywhere; }
   .info a:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; border-radius: 2px; }
   .info .clear { position: absolute; top: 12px; right: 12px; }
+  .info .note { margin-top: 20px; font-size: 14px; line-height: 1.4; }
+  .info .note a { color: var(--muted); }
+  .info .note a:hover { color: var(--fg); }
   @media (max-width: 600px) {
     .info { height: auto; max-height: calc(100% - 32px); padding: 52px 24px 28px; }
     .info p { font-size: 18px; }
@@ -237,6 +240,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
   </button>
   <p>Each of these scanned Risographs was created by Titus Smith, a designer, educator and concert-goer from Vinland, KS. If you'd like him to design one for your band, email him at <a href="mailto:titus@thehideout.design?subject=Let's%20make%20a%20poster!">titus@thehideout.design</a>. All posters created for fun and without permission.</p>
+  <p class="note"><a href="https://www.instagram.com/kucolorbar/" target="_blank" rel="noopener">Printed in the KU Riso lab.</a></p>
 </div>
 
 <button class="theme-switch" id="themeSwitch" type="button" aria-pressed="false" aria-label="Dark mode">
