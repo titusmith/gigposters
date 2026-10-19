@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Gig Posters by Titus Smith</title>
 <meta name="description" content="Risograph gig posters by designer Titus Smith, from Lawrence and Kansas City shows.">
 <meta property="og:type" content="website">
@@ -211,6 +212,13 @@
     .info p { font-size: 18px; }
   }
 
+  /* ---- phones and tablets: posters and the info button only ---- */
+  @media (hover: none) and (pointer: coarse) {
+    .search, .swatches, .theme-switch { display: none !important; }
+    .info-btn { right: 16px; width: 42px; height: 42px; }
+    .info-btn svg { width: 22px; height: 22px; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     body, .card, .knob, .search, #stage.reflow .card { transition: none; }
   }
@@ -288,6 +296,7 @@
   const N = POSTERS.length;
   const OPEN_SCALE = 0.8;      // size of the background posters while one is open
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const TOUCH = matchMedia("(hover: none) and (pointer: coarse)").matches;   // phones and tablets
 
   // seeded randomness so the layout is the same on every load
   let seed = 7;
@@ -390,7 +399,7 @@
   const colOff = g => Math.round((hash(g, 7919) / 4294967296) * period);
   function layout() {
     const vw = innerWidth;
-    colW = vw < 600 ? 128 : vw < 1100 ? 168 : 196;
+    colW = vw < 600 ? 104 : vw < 1100 ? 168 : 196;   // phones: about 2.5 posters across
     gap = Math.round(colW * 0.169);
     vgap = gap + 20;                      // space between posters within a column
     slotW = Math.round(colW * 14 / 11);   // column = width of a landscape 14x11 poster
@@ -920,7 +929,7 @@
 
   // typing anywhere on the canvas starts a search
   addEventListener("keydown", e => {
-    if (e.target === input || e.metaKey || e.ctrlKey || e.altKey || e.isComposing || infoOpen) return;
+    if (TOUCH || e.target === input || e.metaKey || e.ctrlKey || e.altKey || e.isComposing || infoOpen) return;
     if (e.target instanceof HTMLButtonElement && (e.key === " " || e.key === "Enter")) return;
     if (e.key.length !== 1 || (e.key === " " && !input.value)) return;
     e.preventDefault();
@@ -950,7 +959,8 @@
     sw.setAttribute("aria-pressed", String(d));
     sw.setAttribute("aria-label", d ? "Dark mode on" : "Dark mode off");
   };
-  if (saved === "dark" || saved === "light") root.dataset.theme = saved;
+  // phones follow the system light/dark setting; the switch is desktop only
+  if (!TOUCH && (saved === "dark" || saved === "light")) root.dataset.theme = saved;
   syncSwitch();
   sysDark.addEventListener?.("change", syncSwitch);
   sw.addEventListener("click", () => {
