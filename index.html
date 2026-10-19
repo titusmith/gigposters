@@ -192,7 +192,8 @@
   .info-backdrop { position: fixed; inset: 0; z-index: 30; }
   .info {
     position: fixed; z-index: 31; left: 50%; top: 50%;
-    width: min(600px, calc(100% - 32px)); height: min(450px, calc(100% - 32px));
+    min-width: min(600px, calc(100% - 32px)); max-width: calc(100% - 32px);
+    min-height: min(300px, calc(100% - 32px)); max-height: calc(100% - 32px);
     overflow: auto; box-sizing: border-box;
     padding: 56px 48px 48px;
     display: flex; flex-direction: column; justify-content: center;
