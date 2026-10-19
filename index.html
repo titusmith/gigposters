@@ -602,7 +602,14 @@
   }
 
   function handleClick(e) {
-    if (mode === "open" || mode === "opening") return close();
+    if (mode === "open" || mode === "opening") {
+      // on phones, tapping one of the scattered posters hops straight to it (like the arrow keys)
+      if (TOUCH && mode === "open") {
+        const el = e.target.closest?.(".card:not(.leaving):not(.selected):not(.hires)");
+        if (el && snap.items.some(it => it.el === el)) return navigateTo(el);
+      }
+      return close();
+    }
     if (mode !== "idle") return;
     const el = e.target.closest?.(".card:not(.leaving)");
     if (el) open(el);
@@ -734,7 +741,12 @@
       if (score < bestScore) { bestScore = score; best = it.el; }
     }
     if (!best) return;
+    navigateTo(best);
+  }
 
+  function navigateTo(best) {
+    if (mode !== "open" || !snap) return;
+    const vw = innerWidth, vh = innerHeight, cx0 = vw / 2, cy0 = vh / 2;
     const now = new Map(snap.items.map(it => [it.el, it.to]));   // where everything sits right now
     const prev = snap.sel, oldHires = snap.hires;
     panX += cx0 - (best._x + best._w / 2);
